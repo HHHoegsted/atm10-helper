@@ -29,6 +29,15 @@ class QuestImportResult:
 
 
 @dataclass(frozen=True)
+class TaskImportResult:
+    source_path: Path
+    chapter_count: int
+    quest_count: int
+    task_count: int
+    import_run_id: str
+
+
+@dataclass(frozen=True)
 class LanguageImportResult:
     source_path: Path
     locale: str
@@ -60,6 +69,17 @@ class ParsedQuest:
     size: float | None
     x: float | None
     y: float | None
+    raw_snbt: str
+
+
+@dataclass(frozen=True)
+class ParsedQuestTask:
+    id: str
+    quest_id: str
+    task_type: str
+    item_id: str | None
+    item_count: int | None
+    title: str | None
     raw_snbt: str
 
 
@@ -285,6 +305,120 @@ def import_quests(
     )
 
 
+def import_tasks(
+    atm10_path: Path,
+    settings: DatabaseSettings | None = None,
+) -> TaskImportResult:
+    resolved_atm10_path = atm10_path.expanduser().resolve()
+    chapters_path = resolved_atm10_path / CHAPTERS_RELATIVE_PATH
+
+    if not resolved_atm10_path.exists():
+        raise FileNotFoundError(f"ATM10 path does not exist: {resolved_atm10_path}")
+
+    if not chapters_path.exists():
+        raise FileNotFoundError(
+            "Could not find FTB Quests chapter directory at "
+            f"{chapters_path}. Expected an extracted ATM10 instance folder."
+        )
+
+    chapter_files = sorted(chapters_path.glob("*.snbt"))
+
+    if not chapter_files:
+        raise FileNotFoundError(f"No .snbt chapter files found in {chapters_path}")
+
+    parsed_chapters = [_parse_chapter_file(chapter_file) for chapter_file in chapter_files]
+    _raise_for_duplicate_chapter_ids(parsed_chapters)
+
+    parsed_quests: list[ParsedQuest] = []
+
+    for chapter_file, chapter in zip(chapter_files, parsed_chapters, strict=True):
+        parsed_quests.extend(_parse_quests_for_chapter(chapter_file, chapter.id))
+
+    _raise_for_duplicate_quest_ids(parsed_quests)
+
+    parsed_tasks: list[ParsedQuestTask] = []
+
+    for quest in parsed_quests:
+        parsed_tasks.extend(_parse_tasks_for_quest(quest))
+
+    _raise_for_duplicate_task_ids(parsed_tasks)
+
+    resolved_settings = settings or get_database_settings()
+
+    with psycopg.connect(resolved_settings.dsn) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO import_runs (source_label, source_path, modpack_slug, notes)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id;
+                """,
+                (
+                    "ftbquests_tasks",
+                    str(resolved_atm10_path),
+                    "atm10",
+                    "Imported FTB Quests task SNBT blocks.",
+                ),
+            )
+            import_run_id = cursor.fetchone()[0]
+
+            for task in parsed_tasks:
+                cursor.execute(
+                    """
+                    INSERT INTO quest_tasks (
+                        id,
+                        quest_id,
+                        task_type,
+                        item_id,
+                        item_count,
+                        title,
+                        raw_snbt,
+                        import_run_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id)
+                    DO UPDATE SET
+                        quest_id = EXCLUDED.quest_id,
+                        task_type = EXCLUDED.task_type,
+                        item_id = EXCLUDED.item_id,
+                        item_count = EXCLUDED.item_count,
+                        title = EXCLUDED.title,
+                        raw_snbt = EXCLUDED.raw_snbt,
+                        imported_at = now(),
+                        import_run_id = EXCLUDED.import_run_id;
+                    """,
+                    (
+                        task.id,
+                        task.quest_id,
+                        task.task_type,
+                        task.item_id,
+                        task.item_count,
+                        task.title,
+                        task.raw_snbt,
+                        import_run_id,
+                    ),
+                )
+
+            cursor.execute(
+                """
+                UPDATE import_runs
+                SET finished_at = now()
+                WHERE id = %s;
+                """,
+                (import_run_id,),
+            )
+
+        connection.commit()
+
+    return TaskImportResult(
+        source_path=resolved_atm10_path,
+        chapter_count=len(parsed_chapters),
+        quest_count=len(parsed_quests),
+        task_count=len(parsed_tasks),
+        import_run_id=str(import_run_id),
+    )
+
+
 def import_language(
     atm10_path: Path,
     locale: str = "en_us",
@@ -459,6 +593,66 @@ def _parse_quest_block(
         y=_optional_top_level_float_value(quest_block, "y"),
         raw_snbt=quest_block,
     )
+
+
+def _parse_tasks_for_quest(quest: ParsedQuest) -> list[ParsedQuestTask]:
+    tasks_list = _extract_top_level_list(quest.raw_snbt, "tasks")
+
+    if tasks_list is None:
+        return []
+
+    task_blocks = _split_top_level_objects(tasks_list)
+
+    return [
+        _parse_task_block(
+            task_block=task_block,
+            quest_id=quest.id,
+        )
+        for task_block in task_blocks
+    ]
+
+
+def _parse_task_block(task_block: str, quest_id: str) -> ParsedQuestTask:
+    task_id = _required_top_level_string_value(task_block, "id", Path(f"quest {quest_id}"))
+    task_type = _required_top_level_string_value(task_block, "type", Path(f"quest {quest_id}"))
+    item_block = _extract_top_level_object(task_block, "item")
+
+    return ParsedQuestTask(
+        id=task_id,
+        quest_id=quest_id,
+        task_type=task_type,
+        item_id=_extract_item_id_from_item_block(item_block),
+        item_count=_extract_item_count_from_item_block(item_block),
+        title=_optional_top_level_string_value(task_block, "title"),
+        raw_snbt=task_block,
+    )
+
+
+def _extract_item_id_from_item_block(item_block: str | None) -> str | None:
+    if item_block is None:
+        return None
+
+    id_match = re.search(r'\bid:\s*"([^"]+)"', item_block)
+
+    if id_match is None:
+        return None
+
+    return id_match.group(1)
+
+
+def _extract_item_count_from_item_block(item_block: str | None) -> int | None:
+    if item_block is None:
+        return None
+
+    count_match = re.search(
+        r"\b(?:Count|count):\s*(-?\d+)(?:[dDfFlLsSbB])?",
+        item_block,
+    )
+
+    if count_match is None:
+        return None
+
+    return int(count_match.group(1))
 
 
 def _parse_language_entries(language_file: Path) -> dict[str, str | list[str]]:
@@ -665,6 +859,20 @@ def _raise_for_duplicate_quest_ids(parsed_quests: list[ParsedQuest]) -> None:
             )
 
         seen[quest.id] = quest.chapter_id
+
+
+def _raise_for_duplicate_task_ids(parsed_tasks: list[ParsedQuestTask]) -> None:
+    seen: dict[str, str] = {}
+
+    for task in parsed_tasks:
+        if task.id in seen:
+            raise ValueError(
+                "Duplicate task ID found while importing task blocks: "
+                f"{task.id} appears in both quest {seen[task.id]} and quest {task.quest_id}. "
+                "Refusing to import because one task would overwrite another."
+            )
+
+        seen[task.id] = task.quest_id
 
 
 def _required_top_level_string_value(raw_snbt: str, key: str, source_file: Path) -> str:
