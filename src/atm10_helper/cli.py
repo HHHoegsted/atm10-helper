@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 
 from atm10_helper.db import check_database
-from atm10_helper.importer import import_quest_chapters, import_quests
+from atm10_helper.importer import import_language, import_quest_chapters, import_quests
 
 app = typer.Typer(
     help="ATM10 Helper command-line tools.",
@@ -75,3 +75,34 @@ def import_quests_command(
     typer.echo(f"Chapters:   {result.chapter_count}")
     typer.echo(f"Quests:     {result.quest_count}")
     typer.echo(f"Import run: {result.import_run_id}")
+
+
+@app.command("import-language")
+def import_language_command(
+    atm10_path: Path = typer.Argument(
+        ...,
+        help="Path to an extracted ATM10 instance folder.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+    ),
+    locale: str = typer.Option(
+        "en_us",
+        "--locale",
+        "-l",
+        help="FTB Quests language locale to import.",
+    ),
+) -> None:
+    """Import FTB Quests language strings into PostgreSQL."""
+    result = import_language(atm10_path, locale=locale)
+
+    typer.echo("ATM10 Helper language import")
+    typer.echo("----------------------------")
+    typer.echo(f"Source:          {result.source_path}")
+    typer.echo(f"Locale:          {result.locale}")
+    typer.echo(f"Language files:  {result.language_file_count}")
+    typer.echo(f"Chapter updates: {result.chapter_update_count}")
+    typer.echo(f"Quest updates:   {result.quest_update_count}")
+    typer.echo(f"Import run:      {result.import_run_id}")
