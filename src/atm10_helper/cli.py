@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
 from atm10_helper.db import check_database
+from atm10_helper.importer import import_quest_chapters
 
 app = typer.Typer(
     help="ATM10 Helper command-line tools.",
@@ -27,3 +30,25 @@ def db_check() -> None:
     typer.echo(f"Tables:   {result.table_count}")
     typer.echo(f"Views:    {result.view_count}")
     typer.echo(f"Version:  {result.postgres_version.splitlines()[0]}")
+
+
+@app.command("import-chapters")
+def import_chapters(
+    atm10_path: Path = typer.Argument(
+        ...,
+        help="Path to an extracted ATM10 instance folder.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+    ),
+) -> None:
+    """Import FTB Quests chapter files into PostgreSQL."""
+    result = import_quest_chapters(atm10_path)
+
+    typer.echo("ATM10 Helper chapter import")
+    typer.echo("---------------------------")
+    typer.echo(f"Source:     {result.source_path}")
+    typer.echo(f"Chapters:   {result.chapter_count}")
+    typer.echo(f"Import run: {result.import_run_id}")
