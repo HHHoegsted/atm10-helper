@@ -199,7 +199,7 @@ export default function App() {
                     <div className="quest-title-row">
                       <div>
                         <p className="quest-chapter">{quest.chapter_title}</p>
-                        <h3>{quest.quest_title || `Quest ${quest.quest_id}`}</h3>
+                        <h3>{quest.quest_title || "Unnamed quest"}</h3>
                       </div>
                       <span>
                         {quest.completed_tasks}/{quest.total_tasks}
