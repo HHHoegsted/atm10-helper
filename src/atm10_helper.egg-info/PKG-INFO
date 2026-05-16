@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: atm10-helper
-Version: 0.1.0
-Summary: Local helper tools for ATM10 quest/progression tracking.
-Requires-Python: >=3.13
-Description-Content-Type: text/markdown
-Requires-Dist: psycopg[binary]>=3.2.9
-Requires-Dist: python-dotenv>=1.1.0
-Requires-Dist: typer>=0.15.4

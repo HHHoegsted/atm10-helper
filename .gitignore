@@ -29,3 +29,6 @@ Thumbs.db
 atm10/
 atm10.zip
 *.log
+# Python build metadata
+*.egg-info/
+
