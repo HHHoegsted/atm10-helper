@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 
 from atm10_helper.db import check_database
-from atm10_helper.importer import import_quest_chapters
+from atm10_helper.importer import import_quest_chapters, import_quests
 
 app = typer.Typer(
     help="ATM10 Helper command-line tools.",
@@ -51,4 +51,27 @@ def import_chapters(
     typer.echo("---------------------------")
     typer.echo(f"Source:     {result.source_path}")
     typer.echo(f"Chapters:   {result.chapter_count}")
+    typer.echo(f"Import run: {result.import_run_id}")
+
+
+@app.command("import-quests")
+def import_quests_command(
+    atm10_path: Path = typer.Argument(
+        ...,
+        help="Path to an extracted ATM10 instance folder.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+    ),
+) -> None:
+    """Import FTB Quests quest blocks into PostgreSQL."""
+    result = import_quests(atm10_path)
+
+    typer.echo("ATM10 Helper quest import")
+    typer.echo("-------------------------")
+    typer.echo(f"Source:     {result.source_path}")
+    typer.echo(f"Chapters:   {result.chapter_count}")
+    typer.echo(f"Quests:     {result.quest_count}")
     typer.echo(f"Import run: {result.import_run_id}")
