@@ -9,14 +9,14 @@ from atm10_helper.api.models import (
     PlayerResponse,
     ProgressSummaryResponse,
 )
-from atm10_helper.db import get_progress_summary
+from atm10_helper.db import get_players, get_progress_summary
 
 router = APIRouter(prefix="/api")
 
 
 @router.get("/players", response_model=list[PlayerResponse])
 def list_players() -> list[PlayerResponse]:
-    summary = get_progress_summary()
+    players = get_players()
 
     return [
         PlayerResponse(
@@ -24,7 +24,7 @@ def list_players() -> list[PlayerResponse]:
             display_name=player.display_name,
             handle=clean_player_handle(player.display_name),
         )
-        for player in summary.players
+        for player in players
     ]
 
 

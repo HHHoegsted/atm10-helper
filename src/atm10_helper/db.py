@@ -17,6 +17,12 @@ class DatabaseCheck:
 
 
 @dataclass(frozen=True)
+class Player:
+    player_uuid: str
+    display_name: str
+
+
+@dataclass(frozen=True)
 class PlayerProgressSummary:
     player_uuid: str
     display_name: str
@@ -49,7 +55,7 @@ class MissingTask:
     quest_id: str
     task_id: str
     task_type: str
-    title: str
+    title: str | None
     item_id: str | None
     item_count: int | None
 
@@ -61,7 +67,7 @@ class PartialQuest:
     chapter_id: str
     chapter_title: str
     quest_id: str
-    quest_title: str
+    quest_title: str | None
     completed_tasks: int
     total_tasks: int
     missing_tasks: int
@@ -102,6 +108,30 @@ def check_database(settings: DatabaseSettings | None = None) -> DatabaseCheck:
         table_count=table_count,
         view_count=view_count,
     )
+
+
+def get_players(settings: DatabaseSettings | None = None) -> list[Player]:
+    resolved_settings = settings or get_database_settings()
+
+    with psycopg.connect(resolved_settings.dsn, autocommit=True) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    uuid,
+                    display_name
+                FROM players
+                ORDER BY display_name;
+                """
+            )
+
+            return [
+                Player(
+                    player_uuid=row[0],
+                    display_name=row[1],
+                )
+                for row in cursor.fetchall()
+            ]
 
 
 def get_progress_summary(settings: DatabaseSettings | None = None) -> ProgressSummary:
@@ -208,7 +238,7 @@ def get_partial_quests(
     resolved_settings = settings or get_database_settings()
 
     player_filter_clause = ""
-    query_parameters: dict[str, str] = {}
+    query_parameters: dict[str, str | list[str]] = {}
 
     if player_filter is not None:
         player_filter_clause = "AND qcbp.display_name ILIKE %(player_filter_pattern)s"
