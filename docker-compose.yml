@@ -41,5 +41,17 @@ services:
       - --port
       - "8000"
 
+  atm10-helper-frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: "http://192.168.0.155:8020"
+    container_name: atm10-helper-frontend
+    restart: unless-stopped
+    ports:
+      - "8021:80"
+    depends_on:
+      - atm10-helper-api
+
 volumes:
   atm10_helper_pgdata:
