@@ -38,6 +38,14 @@ class RewardImportResult:
 
 
 @dataclass(frozen=True)
+class ProgressImportResult:
+    source_path: Path
+    player_count: int
+    task_progress_count: int
+    import_run_id: str
+
+
+@dataclass(frozen=True)
 class LanguageImportResult:
     source_path: Path
     locale: str
@@ -91,4 +99,12 @@ class ParsedQuestReward:
     item_id: str | None
     item_count: int | None
     xp_levels: int | None
+    raw_snbt: str
+
+
+@dataclass(frozen=True)
+class ParsedPlayerProgress:
+    uuid: str
+    display_name: str
+    task_progress: dict[str, int]
     raw_snbt: str
