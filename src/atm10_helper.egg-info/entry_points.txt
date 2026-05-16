@@ -1,0 +1,2 @@
+[console_scripts]
+atm10-helper = atm10_helper.cli:app

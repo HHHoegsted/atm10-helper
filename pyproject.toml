@@ -1,0 +1,27 @@
+[project]
+name = "atm10-helper"
+version = "0.1.0"
+description = "Local helper tools for ATM10 quest/progression tracking."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "psycopg[binary]>=3.2.9",
+    "python-dotenv>=1.1.0",
+    "typer>=0.15.4",
+]
+
+[project.scripts]
+atm10-helper = "atm10_helper.cli:app"
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
