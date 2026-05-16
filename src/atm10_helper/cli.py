@@ -5,7 +5,7 @@ from pathlib import Path
 
 import typer
 
-from atm10_helper.db import check_database, get_progress_summary
+from atm10_helper.db import check_database, get_partial_quests, get_progress_summary
 from atm10_helper.importer import (
     import_language,
     import_progress,
@@ -145,6 +145,110 @@ def progress_summary(
             )
 
         typer.echo("\n".join(chapter_lines))
+
+
+@app.command("next-steps")
+def next_steps(
+    player_filter: str | None = typer.Option(
+        None,
+        "--player",
+        "-p",
+        help="Only show players whose display name contains this text, case-insensitive.",
+    ),
+    limit: int = typer.Option(
+        20,
+        "--limit",
+        "-n",
+        min=1,
+        help="Maximum number of partial quests to show.",
+    ),
+    missing_limit: int = typer.Option(
+        10,
+        "--missing-limit",
+        min=1,
+        help="Maximum number of missing task details to show per quest.",
+    ),
+) -> None:
+    """Show incomplete quests that already have progress."""
+    partial_quests = get_partial_quests(player_filter=player_filter)
+
+    typer.echo("ATM10 Helper next steps")
+    typer.echo("-----------------------")
+
+    if player_filter is not None:
+        typer.echo(f"Player filter: {clean_cli_text(player_filter)}")
+
+    if not partial_quests:
+        if player_filter is None:
+            typer.echo("No partial quests found.")
+        else:
+            typer.echo(f"No partial quests found for player filter: {player_filter}")
+        return
+
+    displayed_quests = partial_quests[:limit]
+    hidden_quest_count = len(partial_quests) - len(displayed_quests)
+
+    current_player_uuid: str | None = None
+
+    for quest in displayed_quests:
+        if quest.player_uuid != current_player_uuid:
+            current_player_uuid = quest.player_uuid
+            typer.echo("")
+            typer.echo(clean_cli_text(quest.display_name))
+
+        quest_lines = [
+            f"  {format_quest_heading(quest.chapter_title, quest.quest_title, quest.quest_id)}",
+            (
+                f"    Progress: {quest.completed_tasks}/{quest.total_tasks} tasks "
+                f"({quest.missing_tasks} missing)"
+            ),
+        ]
+
+        if quest.missing_task_details:
+            displayed_missing_tasks = quest.missing_task_details[:missing_limit]
+            hidden_missing_task_count = (
+                len(quest.missing_task_details) - len(displayed_missing_tasks)
+            )
+
+            item_tasks = [
+                task
+                for task in displayed_missing_tasks
+                if task.task_type == "item" and task.item_id
+            ]
+            other_tasks = [
+                task
+                for task in displayed_missing_tasks
+                if task.task_type != "item" or not task.item_id
+            ]
+
+            if item_tasks:
+                quest_lines.append("    Missing item tasks:")
+                for task in item_tasks:
+                    quest_lines.extend(
+                        format_item_task_lines(task.item_id, task.item_count)
+                    )
+
+            if other_tasks:
+                quest_lines.append("    Missing other tasks:")
+                quest_lines.extend(
+                    f"      - {format_other_task(task.task_type, task.title, task.task_id)}"
+                    for task in other_tasks
+                )
+
+            if hidden_missing_task_count > 0:
+                quest_lines.append(
+                    f"    ... {hidden_missing_task_count} more missing tasks hidden "
+                    f"(use --missing-limit {len(quest.missing_task_details)} to show all)"
+                )
+
+        typer.echo("\n".join(quest_lines))
+
+    if hidden_quest_count > 0:
+        typer.echo("")
+        typer.echo(
+            f"... {hidden_quest_count} more partial quests hidden "
+            f"(use --limit {len(partial_quests)} to show all)"
+        )
 
 
 @app.command("import-chapters")
@@ -292,6 +396,51 @@ def import_language_command(
     typer.echo(f"Chapter updates: {result.chapter_update_count}")
     typer.echo(f"Quest updates:   {result.quest_update_count}")
     typer.echo(f"Import run:      {result.import_run_id}")
+
+
+def format_quest_heading(chapter_title: str, quest_title: str, quest_id: str) -> str:
+    clean_chapter_title = clean_cli_text(chapter_title)
+    clean_quest_title = clean_cli_text(quest_title)
+
+    if clean_quest_title:
+        return f"{clean_chapter_title} — {clean_quest_title}"
+
+    return f"{clean_chapter_title} — quest {quest_id}"
+
+
+def format_item_task_lines(item_id: str, item_count: int | None) -> list[str]:
+    clean_item_id = clean_identifier(item_id)
+
+    if item_count is None or item_count <= 1:
+        return [
+            "      - item",
+            f"        {clean_item_id}",
+        ]
+
+    return [
+        f"      - x{item_count}",
+        f"        {clean_item_id}",
+    ]
+
+
+def format_other_task(task_type: str, title: str, task_id: str) -> str:
+    clean_title = clean_cli_text(title)
+
+    if clean_title:
+        return f"{clean_identifier(task_type)}: {clean_title}"
+
+    return f"{clean_identifier(task_type)} task {clean_identifier(task_id)}"
+
+
+def clean_identifier(value: str | None) -> str:
+    if value is None:
+        return ""
+
+    return "".join(
+        character
+        for character in value
+        if character.isprintable() and not character.isspace()
+    ).strip()
 
 
 def clean_cli_text(value: str | None) -> str:

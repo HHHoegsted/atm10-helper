@@ -43,6 +43,31 @@ class ProgressSummary:
     chapters: list[ChapterProgressSummary]
 
 
+@dataclass(frozen=True)
+class MissingTask:
+    player_uuid: str
+    quest_id: str
+    task_id: str
+    task_type: str
+    title: str
+    item_id: str | None
+    item_count: int | None
+
+
+@dataclass(frozen=True)
+class PartialQuest:
+    player_uuid: str
+    display_name: str
+    chapter_id: str
+    chapter_title: str
+    quest_id: str
+    quest_title: str
+    completed_tasks: int
+    total_tasks: int
+    missing_tasks: int
+    missing_task_details: list[MissingTask]
+
+
 def check_database(settings: DatabaseSettings | None = None) -> DatabaseCheck:
     resolved_settings = settings or get_database_settings()
 
@@ -174,3 +199,155 @@ def get_progress_summary(settings: DatabaseSettings | None = None) -> ProgressSu
         players=players,
         chapters=chapters,
     )
+
+
+def get_partial_quests(
+    player_filter: str | None = None,
+    settings: DatabaseSettings | None = None,
+) -> list[PartialQuest]:
+    resolved_settings = settings or get_database_settings()
+
+    player_filter_clause = ""
+    query_parameters: dict[str, str] = {}
+
+    if player_filter is not None:
+        player_filter_clause = "AND qcbp.display_name ILIKE %(player_filter_pattern)s"
+        query_parameters["player_filter_pattern"] = f"%{player_filter}%"
+
+    with psycopg.connect(resolved_settings.dsn, autocommit=True) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT
+                    qcbp.player_uuid,
+                    qcbp.display_name,
+                    qc.id AS chapter_id,
+                    qc.title AS chapter_title,
+                    qcbp.quest_id,
+                    qcbp.quest_title,
+                    qcbp.completed_tasks,
+                    qcbp.total_tasks,
+                    qcbp.total_tasks - qcbp.completed_tasks AS missing_tasks
+                FROM quest_completion_by_player qcbp
+                    JOIN quest_chapters qc
+                        ON qc.id = qcbp.chapter_id
+                WHERE qcbp.completed_tasks > 0
+                  AND NOT qcbp.is_complete
+                  {player_filter_clause}
+                ORDER BY
+                    qcbp.display_name,
+                    qcbp.completed_tasks DESC,
+                    missing_tasks ASC,
+                    qc.title,
+                    qcbp.quest_title;
+                """,
+                query_parameters,
+            )
+            partial_quests = [
+                PartialQuest(
+                    player_uuid=row[0],
+                    display_name=row[1],
+                    chapter_id=row[2],
+                    chapter_title=row[3],
+                    quest_id=row[4],
+                    quest_title=row[5],
+                    completed_tasks=row[6],
+                    total_tasks=row[7],
+                    missing_tasks=row[8],
+                    missing_task_details=[],
+                )
+                for row in cursor.fetchall()
+            ]
+
+            if not partial_quests:
+                return []
+
+            quest_keys = [
+                (quest.player_uuid, quest.quest_id)
+                for quest in partial_quests
+            ]
+
+            cursor.execute(
+                """
+                SELECT
+                    missing.player_uuid,
+                    missing.quest_id,
+                    missing.task_id,
+                    missing.task_type,
+                    missing.title,
+                    missing.item_id,
+                    missing.item_count
+                FROM (
+                    SELECT
+                        selected.player_uuid,
+                        qt.quest_id,
+                        qt.id AS task_id,
+                        qt.task_type,
+                        qt.title,
+                        qt.item_id,
+                        qt.item_count
+                    FROM (
+                        SELECT
+                            UNNEST(%(player_uuids)s::text[]) AS player_uuid,
+                            UNNEST(%(quest_ids)s::text[]) AS quest_id
+                    ) selected
+                        JOIN quest_tasks qt
+                            ON qt.quest_id = selected.quest_id
+                        LEFT JOIN player_completed_tasks pct
+                            ON pct.player_uuid = selected.player_uuid
+                           AND pct.task_id = qt.id
+                    WHERE pct.task_id IS NULL
+                ) missing
+                ORDER BY
+                    missing.player_uuid,
+                    missing.quest_id,
+                    CASE missing.task_type
+                        WHEN 'item' THEN 0
+                        ELSE 1
+                    END,
+                    missing.task_type,
+                    missing.item_id,
+                    missing.title,
+                    missing.task_id;
+                """,
+                {
+                    "player_uuids": [player_uuid for player_uuid, _ in quest_keys],
+                    "quest_ids": [quest_id for _, quest_id in quest_keys],
+                },
+            )
+
+            missing_tasks_by_quest_key: dict[tuple[str, str], list[MissingTask]] = {}
+
+            for row in cursor.fetchall():
+                missing_task = MissingTask(
+                    player_uuid=row[0],
+                    quest_id=row[1],
+                    task_id=row[2],
+                    task_type=row[3],
+                    title=row[4],
+                    item_id=row[5],
+                    item_count=row[6],
+                )
+                missing_tasks_by_quest_key.setdefault(
+                    (missing_task.player_uuid, missing_task.quest_id),
+                    [],
+                ).append(missing_task)
+
+    return [
+        PartialQuest(
+            player_uuid=quest.player_uuid,
+            display_name=quest.display_name,
+            chapter_id=quest.chapter_id,
+            chapter_title=quest.chapter_title,
+            quest_id=quest.quest_id,
+            quest_title=quest.quest_title,
+            completed_tasks=quest.completed_tasks,
+            total_tasks=quest.total_tasks,
+            missing_tasks=quest.missing_tasks,
+            missing_task_details=missing_tasks_by_quest_key.get(
+                (quest.player_uuid, quest.quest_id),
+                [],
+            ),
+        )
+        for quest in partial_quests
+    ]
