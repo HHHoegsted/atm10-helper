@@ -9,7 +9,9 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock ./
+RUN printf '# ATM10 Helper\n' > README.md
+
 COPY src ./src
 
 RUN uv sync --frozen --no-dev
