@@ -33,3 +33,5 @@ atm10.zip
 # Python build metadata
 *.egg-info/
 
+frontend/node_modules/
+frontend/dist/

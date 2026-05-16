@@ -1,0 +1,276 @@
+:root {
+  color: #e5eefb;
+  background: #0b1020;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(74, 144, 226, 0.22), transparent 34rem),
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 28rem),
+    #0b1020;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.hero {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #93c5fd;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 10px;
+  font-size: clamp(2.2rem, 5vw, 4.4rem);
+  line-height: 0.95;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.45rem;
+}
+
+h3 {
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.hero-copy {
+  max-width: 760px;
+  margin-bottom: 0;
+  color: #cbd5e1;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.player-picker {
+  display: grid;
+  gap: 8px;
+  min-width: 240px;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.player-picker select {
+  width: 100%;
+  padding: 12px 14px;
+  color: #e5eefb;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.section-heading {
+  margin: 0 0 18px;
+}
+
+.card,
+.stat-card,
+.error-card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
+}
+
+.card,
+.error-card {
+  padding: 22px;
+}
+
+.error-card {
+  margin-bottom: 20px;
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.38);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  padding: 20px;
+}
+
+.stat-card p {
+  margin-bottom: 10px;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.stat-card strong {
+  display: block;
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.15fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.chapter-list,
+.quest-list {
+  display: grid;
+  gap: 12px;
+}
+
+.chapter-row,
+.quest-card {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.chapter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+}
+
+.chapter-row p,
+.quest-chapter,
+.muted {
+  color: #94a3b8;
+}
+
+.chapter-row p {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+.chapter-row strong {
+  font-size: 1.4rem;
+}
+
+.quest-card {
+  padding: 16px;
+}
+
+.quest-title-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.quest-title-row span {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  color: #bfdbfe;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  border-radius: 999px;
+  background: rgba(30, 64, 175, 0.2);
+  font-weight: 800;
+}
+
+.quest-chapter {
+  margin-bottom: 4px;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.missing-list {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.missing-list li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.78);
+}
+
+.missing-list strong {
+  color: #bfdbfe;
+}
+
+.missing-list span {
+  overflow-wrap: anywhere;
+  color: #e2e8f0;
+}
+
+.muted {
+  margin: 12px 0 0;
+}
+
+@media (max-width: 920px) {
+  .hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .player-picker {
+    min-width: 0;
+  }
+
+  .stats-grid,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
