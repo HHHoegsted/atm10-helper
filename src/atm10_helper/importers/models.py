@@ -29,6 +29,15 @@ class TaskImportResult:
 
 
 @dataclass(frozen=True)
+class RewardImportResult:
+    source_path: Path
+    chapter_count: int
+    quest_count: int
+    reward_count: int
+    import_run_id: str
+
+
+@dataclass(frozen=True)
 class LanguageImportResult:
     source_path: Path
     locale: str
@@ -71,4 +80,15 @@ class ParsedQuestTask:
     item_id: str | None
     item_count: int | None
     title: str | None
+    raw_snbt: str
+
+
+@dataclass(frozen=True)
+class ParsedQuestReward:
+    id: str
+    quest_id: str
+    reward_type: str
+    item_id: str | None
+    item_count: int | None
+    xp_levels: int | None
     raw_snbt: str

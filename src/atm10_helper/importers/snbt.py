@@ -115,6 +115,26 @@ def optional_top_level_float_value(raw_snbt: str, key: str) -> float | None:
     return None
 
 
+def optional_top_level_integer_value(raw_snbt: str, key: str) -> int | None:
+    depth = 0
+
+    for line in raw_snbt.splitlines():
+        stripped_line = line.strip()
+
+        if depth == 1:
+            match = re.fullmatch(
+                rf"{re.escape(key)}:\s*(-?\d+)(?:[dDfFlLsSbB])?",
+                stripped_line,
+            )
+
+            if match is not None:
+                return int(match.group(1))
+
+        depth = updated_depth(depth, line)
+
+    return None
+
+
 def optional_top_level_icon_id(raw_snbt: str) -> str | None:
     icon_block = extract_top_level_object(raw_snbt, "icon")
 

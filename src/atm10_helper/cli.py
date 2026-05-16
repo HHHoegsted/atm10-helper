@@ -9,6 +9,7 @@ from atm10_helper.importer import (
     import_language,
     import_quest_chapters,
     import_quests,
+    import_rewards,
     import_tasks,
 )
 
@@ -103,6 +104,30 @@ def import_tasks_command(
     typer.echo(f"Chapters:   {result.chapter_count}")
     typer.echo(f"Quests:     {result.quest_count}")
     typer.echo(f"Tasks:      {result.task_count}")
+    typer.echo(f"Import run: {result.import_run_id}")
+
+
+@app.command("import-rewards")
+def import_rewards_command(
+    atm10_path: Path = typer.Argument(
+        ...,
+        help="Path to an extracted ATM10 instance folder.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+    ),
+) -> None:
+    """Import FTB Quests reward blocks into PostgreSQL."""
+    result = import_rewards(atm10_path)
+
+    typer.echo("ATM10 Helper reward import")
+    typer.echo("--------------------------")
+    typer.echo(f"Source:     {result.source_path}")
+    typer.echo(f"Chapters:   {result.chapter_count}")
+    typer.echo(f"Quests:     {result.quest_count}")
+    typer.echo(f"Rewards:    {result.reward_count}")
     typer.echo(f"Import run: {result.import_run_id}")
 
 
