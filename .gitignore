@@ -18,6 +18,7 @@ data/
 tmp/
 *.sqlite
 *.db
+next-steps.md
 
 # OS / editor
 .DS_Store
